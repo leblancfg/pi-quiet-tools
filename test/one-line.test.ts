@@ -7,18 +7,26 @@ describe("toOneLine", () => {
 		expect(toOneLine([], 20, "…")).toEqual([]);
 	});
 
-	it("keeps a single short line unchanged", () => {
+	it("keeps a line that already fits", () => {
 		expect(toOneLine(["bash ls -la"], 20, "…")).toEqual(["bash ls -la"]);
 	});
 
-	it("marks the line when the inner component wrapped to more lines", () => {
-		const lines = toOneLine(["bash pnpm run build", "  --verbose"], 20, "…");
-		expect(lines).toHaveLength(1);
-		expect(lines[0]).toBe("bash pnpm run build…");
+	it("drops the padding a component added to fill its render width", () => {
+		expect(toOneLine(["bash ls -la        "], 20, "…")).toEqual(["bash ls -la"]);
+	});
+
+	it("marks a line that is wider than the terminal", () => {
+		const lines = toOneLine(["bash pnpm run build --verbose"], 20, "…");
+		expect(stripTerminalSequences(lines[0]!)).toBe("bash pnpm run build…");
+	});
+
+	it("marks a line when the component produced more lines below it", () => {
+		const lines = toOneLine(["bash first", "second"], 20, "…");
+		expect(stripTerminalSequences(lines[0]!)).toBe("bash first…");
 	});
 
 	it("never returns a line wider than the terminal", () => {
-		const lines = toOneLine(["0123456789", "rest"], 6, "…");
+		const lines = toOneLine(["0123456789"], 6, "…");
 		expect(visibleWidth(lines[0]!)).toBeLessThanOrEqual(6);
 		expect(stripTerminalSequences(lines[0]!)).toBe("01234…");
 	});

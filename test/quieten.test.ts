@@ -98,6 +98,27 @@ describe("quieten", () => {
 		expect(plain(call.render(14))).toEqual(["bash a-very-l…"]);
 	});
 
+	it("applies a mid-session toggle to a row it already rendered", () => {
+		// The row keeps one state object for its whole life. Toggling has to change
+		// what that same row renders, not only what the next tool call renders.
+		const visibleCall = definition.renderCall!({}, theme, fakeContext(state));
+		const visibleOutput = definition.renderResult!(result, options, theme, fakeContext(state));
+		expect(plain(visibleCall.render(40))).toEqual(["bash a-very-long-command --flag"]);
+		expect(visibleOutput.render(40).length).toBe(3);
+
+		hidden = true;
+		const hiddenCall = definition.renderCall!({}, theme, fakeContext(state));
+		const hiddenOutput = definition.renderResult!(result, options, theme, fakeContext(state));
+		expect(hiddenCall.render(40)).toHaveLength(1);
+		expect(hiddenOutput.render(40)).toEqual([]);
+
+		hidden = false;
+		const shownCall = definition.renderCall!({}, theme, fakeContext(state));
+		const shownOutput = definition.renderResult!(result, options, theme, fakeContext(state));
+		expect(plain(shownCall.render(40))).toEqual(["bash a-very-long-command --flag"]);
+		expect(shownOutput.render(40).length).toBe(3);
+	});
+
 	it("hands pi's renderers their own previous component, never the wrapper", () => {
 		hidden = true;
 		const first = definition.renderCall!({}, theme, fakeContext(state));

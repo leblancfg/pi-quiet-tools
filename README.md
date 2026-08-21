@@ -27,9 +27,11 @@ pi install git:github.com/leblancfg/pi-quiet-tools
 | Check the current mode | `/quiet status` |
 | Start a session with output hidden | `pi --quiet-tools` |
 
-While output is hidden, the footer shows `tools quiet`. The setting is saved to
-`~/.pi/agent/quiet-tools.json`, so it survives restarts. Set
-`PI_QUIET_TOOLS_STATE` to store it somewhere else.
+Each change reports `Tool output: hidden` or `Tool output: visible`, and applies
+to the whole transcript: tool rows already on screen collapse and expand with it.
+
+The setting is saved to `~/.pi/agent/quiet-tools.json`, so it survives restarts.
+Set `PI_QUIET_TOOLS_STATE` to store it somewhere else.
 
 A tool call that does not fit the terminal width gets cut at the edge and marked
 with `…`. Multi-line commands get the same mark.
@@ -58,8 +60,8 @@ renderer owns the elapsed-time timer for that row.
 - Rebuilding the built-in tools means re-reading the settings pi passes to them:
   `shellPath`, `shellCommandPrefix`, and `images.autoResize`. Other settings that
   reach built-in tools in a future pi release would need to be added here.
-- Toggling redraws rows already on screen. Pi applies that change through the
-  tool-expansion state, so the footer briefly reports an expansion change.
+- Toggling redraws rows already on screen through pi's tool-expansion state,
+  which is the only lever an extension has for that.
 
 ## Develop
 

@@ -63,18 +63,13 @@ export default function (pi: ExtensionAPI) {
 		}
 	}
 
-	function showState(ctx: ExtensionContext): void {
-		if (!ctx.hasUI) {
-			return;
-		}
-		ctx.ui.setStatus("quiet-tools", hidden ? "tools quiet" : undefined);
-	}
-
 	/**
-	 * Redraw rows that are already on screen.
+	 * Redraw the tool rows that are already on screen, so the new mode applies to
+	 * the whole transcript and not only to the next tool call.
 	 *
-	 * pi only pushes an expansion change into existing rows when the value
-	 * changes, so flip it and flip it back.
+	 * pi pushes an expansion change into existing rows only when the value
+	 * changes, so flip it and flip it back. Each flip re-runs the renderers of
+	 * every row.
 	 */
 	function redrawRows(ctx: ExtensionContext): void {
 		if (ctx.mode !== "tui") {
@@ -88,9 +83,9 @@ export default function (pi: ExtensionAPI) {
 	function setHidden(ctx: ExtensionContext, next: boolean): void {
 		hidden = next;
 		writeHidden(statePath, hidden);
-		showState(ctx);
 		redrawRows(ctx);
 		if (ctx.hasUI) {
+			// Report after the redraw: pi reports its own expansion change during it.
 			ctx.ui.notify(`Tool output: ${hidden ? "hidden" : "visible"}`, "info");
 		}
 	}
@@ -100,7 +95,6 @@ export default function (pi: ExtensionAPI) {
 			hidden = true;
 		}
 		install(ctx);
-		showState(ctx);
 	});
 
 	pi.registerShortcut(Key.ctrlAlt("o"), {

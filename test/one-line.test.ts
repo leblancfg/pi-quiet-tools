@@ -1,4 +1,4 @@
-import { stripTerminalSequences, visibleWidth } from "@earendil-works/pi-tui";
+import { Box, stripTerminalSequences, Text, visibleWidth } from "@earendil-works/pi-tui";
 import { describe, expect, it } from "vitest";
 import { toOneLine } from "../src/one-line.ts";
 
@@ -13,6 +13,14 @@ describe("toOneLine", () => {
 
 	it("drops the padding a component added to fill its render width", () => {
 		expect(toOneLine(["bash ls -la        "], 20, "…")).toEqual(["bash ls -la"]);
+	});
+
+	it("uses the first content line from a styled padded component", () => {
+		const box = new Box(1, 1, (text) => `\u001b[42m${text}\u001b[0m`);
+		box.addChild(new Text("edit src/index.ts", 0, 0));
+
+		const lines = toOneLine(box.render(40), 40, "…");
+		expect(stripTerminalSequences(lines[0]!)).toBe("edit src/index.ts");
 	});
 
 	it("marks a line that is wider than the terminal", () => {

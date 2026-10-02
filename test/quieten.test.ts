@@ -4,7 +4,7 @@ import { type AnyToolDefinition, quieten } from "../src/quieten.ts";
 
 type RenderContext = Parameters<NonNullable<AnyToolDefinition["renderCall"]>>[2];
 
-const theme = { fg: (_role: string, text: string) => text } as never;
+const theme = { fg: (_role: string, text: string) => text, bold: (text: string) => text } as never;
 
 /** Compare rendered lines without the padding and colour codes components add. */
 function plain(lines: string[]): string[] {
@@ -84,6 +84,29 @@ describe("quieten", () => {
 		hidden = true;
 		const output = definition.renderResult!(result, options, theme, fakeContext(state));
 		expect(output.render(40)).toEqual([]);
+	});
+
+	it("adds quiet renderers to tools that normally use pi's generic rendering", () => {
+		hidden = true;
+		const generic = quieten(
+			{
+				name: "mcp__docs__search",
+				label: "mcp__docs__search",
+				description: "fake MCP tool",
+				parameters: {} as never,
+				execute: async () => result,
+			},
+			() => hidden,
+		);
+
+		const call = generic.renderCall!({ query: "tool output" }, theme, fakeContext(state));
+		const output = generic.renderResult!(result, options, theme, fakeContext(state));
+		expect(plain(call.render(40))).toEqual(["mcp__docs__search query=\"tool output\""]);
+		expect(output.render(40)).toEqual([]);
+
+		hidden = false;
+		const visibleOutput = generic.renderResult!(result, options, theme, fakeContext(state));
+		expect(plain(visibleOutput.render(40))).toEqual(["ok"]);
 	});
 
 	it("still runs pi's result renderer while output is hidden, so row timers settle", () => {

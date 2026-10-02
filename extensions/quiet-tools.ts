@@ -1,15 +1,20 @@
 import {
 	createBashToolDefinition,
+	createCodemodeExtension,
 	createEditToolDefinition,
 	createFindToolDefinition,
 	createGrepToolDefinition,
 	createLsToolDefinition,
+	createMcpExtension,
+	createPowerShellToolDefinition,
 	createReadToolDefinition,
+	createToolSearchExtension,
 	createWriteToolDefinition,
 	type ExtensionAPI,
 	type ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
 import { Key } from "@earendil-works/pi-tui";
+import { createQuietToolApi } from "../src/quiet-api.ts";
 import { type AnyToolDefinition, quieten } from "../src/quieten.ts";
 import { defaultStatePath, readHidden, writeHidden } from "../src/state.ts";
 import { type BuiltInToolOptions, defaultSettingsPaths, readToolOptions } from "../src/tool-options.ts";
@@ -18,6 +23,13 @@ export default function (pi: ExtensionAPI) {
 	const statePath = defaultStatePath();
 	let hidden = readHidden(statePath);
 	let installed = false;
+
+	// These built-in extensions register tools outside the fixed core tool set.
+	// Run them through a persistent proxy so later MCP registrations are quiet too.
+	const quietPi = createQuietToolApi(pi, () => hidden);
+	void createCodemodeExtension()(quietPi);
+	void createToolSearchExtension()(quietPi);
+	void createMcpExtension()(quietPi);
 
 	pi.registerFlag("quiet-tools", {
 		type: "boolean",
@@ -33,6 +45,7 @@ export default function (pi: ExtensionAPI) {
 			createGrepToolDefinition(cwd),
 			createFindToolDefinition(cwd),
 			createLsToolDefinition(cwd),
+			createPowerShellToolDefinition(cwd),
 		];
 	}
 

@@ -1,4 +1,4 @@
-import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
+import type { ToolDefinition, ToolRenderers } from "@earendil-works/pi-coding-agent";
 import { type Component, Container, Text } from "@earendil-works/pi-tui";
 import { toOneLine, UNWRAPPED_WIDTH } from "./one-line.ts";
 
@@ -35,12 +35,12 @@ export class OneLine implements Component {
 
 /** Pi's fallback display for tools that do not provide their own renderer. */
 function renderGenericCall(
-	definition: AnyToolDefinition,
+	toolName: string,
 	args: unknown,
 	theme: Parameters<NonNullable<AnyToolDefinition["renderCall"]>>[1],
 	expanded: boolean,
 ): Component {
-	const title = theme.fg("toolTitle", theme.bold(definition.name));
+	const title = theme.fg("toolTitle", theme.bold(toolName));
 	if (!args || typeof args !== "object" || Array.isArray(args) || Object.keys(args).length === 0) {
 		return new Text(title, 0, 0);
 	}
@@ -70,21 +70,23 @@ function renderGenericResult(
 }
 
 /**
- * Wrap a tool definition so its output can be hidden at render time.
+ * Wrap a tool's renderers so its output can be hidden at render time.
  *
- * Rendering is the only reason this extension replaces tools, so `execute` and
- * every other field pass through untouched. Pi's generic display is reproduced
- * for tools without custom renderers, including MCP resource tools.
+ * Pi's generic display is reproduced for tools without custom renderers,
+ * including MCP tools and tools whose definition is not known yet.
  */
-export function quieten(definition: AnyToolDefinition, isHidden: () => boolean): AnyToolDefinition {
-	const renderCall =
-		definition.renderCall ??
-		((args, theme, context) => renderGenericCall(definition, args, theme, context.expanded));
-	const renderResult =
-		definition.renderResult ?? ((result, _options, theme) => renderGenericResult(result, theme));
+export function quietRenderers(
+	toolName: string,
+	renderers: ToolRenderers | undefined,
+	isHidden: () => boolean,
+): ToolRenderers {
+	const renderCall: NonNullable<ToolRenderers["renderCall"]> =
+		renderers?.renderCall ?? ((args, theme, context) => renderGenericCall(toolName, args, theme, context.expanded));
+	const renderResult: NonNullable<ToolRenderers["renderResult"]> =
+		renderers?.renderResult ?? ((result, _options, theme) => renderGenericResult(result, theme));
 
 	return {
-		...definition,
+		...renderers,
 		renderCall(args, theme, context) {
 			const state = context.state as RowState;
 			const inner = renderCall(args, theme, { ...context, lastComponent: state.quietToolsCall });
@@ -113,4 +115,14 @@ export function quieten(definition: AnyToolDefinition, isHidden: () => boolean):
 			return state.quietToolsEmpty;
 		},
 	};
+}
+
+/**
+ * Wrap a tool definition so its output can be hidden at render time.
+ *
+ * Rendering is the only reason this extension replaces tools, so `execute` and
+ * every other field pass through untouched.
+ */
+export function quieten(definition: AnyToolDefinition, isHidden: () => boolean): AnyToolDefinition {
+	return { ...definition, ...quietRenderers(definition.name, definition, isHidden) };
 }

@@ -38,7 +38,7 @@ export function readToolOptions(settingsPaths: string[]): BuiltInToolOptions {
 	};
 }
 
-function readJsonObject(path: string): Record<string, unknown> {
+export function readJsonObject(path: string): Record<string, unknown> {
 	try {
 		const parsed: unknown = JSON.parse(readFileSync(path, "utf8"));
 		return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : {};

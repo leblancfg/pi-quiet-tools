@@ -14,8 +14,9 @@ import {
 	type ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
 import { Key } from "@earendil-works/pi-tui";
+import { readReplacedBuiltins, type ToolBuiltin } from "../src/builtins.ts";
 import { createQuietToolApi } from "../src/quiet-api.ts";
-import { type AnyToolDefinition, quieten } from "../src/quieten.ts";
+import { type AnyToolDefinition, quieten, quietRenderers } from "../src/quieten.ts";
 import { defaultStatePath, readHidden, writeHidden } from "../src/state.ts";
 import { type BuiltInToolOptions, defaultSettingsPaths, readToolOptions } from "../src/tool-options.ts";
 
@@ -24,12 +25,26 @@ export default function (pi: ExtensionAPI) {
 	let hidden = readHidden(statePath);
 	let installed = false;
 
-	// These built-in extensions register tools outside the fixed core tool set.
-	// Run them through a persistent proxy so later MCP registrations are quiet too.
-	const quietPi = createQuietToolApi(pi, () => hidden);
-	void createCodemodeExtension()(quietPi);
-	void createToolSearchExtension()(quietPi);
-	void createMcpExtension()(quietPi);
+	// pi 1.0.1 and newer let an extension choose the renderers of any tool,
+	// including core, codemode, and MCP tools, without replacing the tool.
+	const rendererHook = "registerToolRenderer" in pi && typeof pi.registerToolRenderer === "function";
+	if (rendererHook) {
+		pi.registerToolRenderer((toolName, next) => quietRenderers(toolName, next(), () => hidden));
+	}
+
+	// On pi 1.0.0 the only way to wrap codemode and MCP tools is to run pi's
+	// built-in extensions here. That is opt-in: pi warns when an enabled
+	// built-in gets replaced, and another extension may replace it too.
+	const replacedBuiltins = readReplacedBuiltins(defaultSettingsPaths(process.cwd()));
+	const hostPi = rendererHook ? pi : createQuietToolApi(pi, () => hidden);
+	const builtinFactories: Record<ToolBuiltin, () => (pi: ExtensionAPI) => unknown> = {
+		codemode: createCodemodeExtension,
+		"tool-search": createToolSearchExtension,
+		mcp: createMcpExtension,
+	};
+	for (const name of replacedBuiltins) {
+		void builtinFactories[name]()(hostPi);
+	}
 
 	pi.registerFlag("quiet-tools", {
 		type: "boolean",
@@ -50,7 +65,7 @@ export default function (pi: ExtensionAPI) {
 	}
 
 	function install(ctx: ExtensionContext): void {
-		if (installed) {
+		if (installed || rendererHook) {
 			return;
 		}
 		installed = true;

@@ -44,27 +44,49 @@ the hotkey are the interface.
 
 ## How it works
 
-Pi picks the renderer for a tool row in two slots: one for the call, one for the
-result. This extension wraps the core tools, `codemode`, `tool_search`, and the
-built-in MCP support. It also wraps MCP tools when their servers connect. The
-model still receives the full output. Only the screen changes.
+Pi draws each tool row with two renderers: one for the call, one for the
+result. This extension wraps them. The model still receives the full output.
+Only the screen changes.
 
-The extension passes each tool's `execute` function through untouched. It also
-runs the original result renderer while output is hidden, because that renderer
-owns the elapsed-time timer for the row.
+On pi 1.0.1 and newer, the extension uses `pi.registerToolRenderer()`. That
+covers every tool: the core tools, `codemode`, `tool_search`, MCP tools, and
+tools from other extensions. No tool is replaced.
+
+On pi 1.0.0, that hook does not exist. The extension re-registers the core
+tools with wrapped renderers and passes each `execute` function through
+untouched. `codemode`, `tool_search`, and MCP tools keep their output, unless
+you opt in as shown in the next section.
+
+In both cases the original result renderer still runs while output is hidden,
+because it owns the elapsed-time timer for the row.
+
+### Quiet codemode and MCP tools on pi 1.0.0
+
+Quiet Tools can run pi's `codemode`, `tool-search`, and `mcp` built-in
+extensions itself, so that it can wrap the tools they register. Turn off pi's
+copy of each one and name it under `quietTools.builtins` in
+`~/.pi/agent/settings.json`:
+
+```json
+{
+  "extensions": ["-builtin:codemode", "-builtin:tool-search", "-builtin:mcp"],
+  "quietTools": { "builtins": ["codemode", "tool-search", "mcp"] }
+}
+```
+
+If you name a built-in without turning off pi's copy, pi warns at startup that
+it skipped its own copy. Do not use this with another extension that replaces
+one of these built-ins. If you uninstall Quiet Tools, remove both entries, or
+`codemode` and MCP support go away with it. On pi 1.0.1 and newer you do not
+need this.
 
 ### Limits
 
-- A core tool that another extension already replaced is left alone. Sandbox
-  and remote-execution extensions keep working, but their output stays visible.
-  Tools from unrelated extensions also keep their own output. The extension
-  names replaced core tools at startup.
-- Quiet Tools takes over pi's replaceable `codemode`, `tool_search`, and MCP
-  extensions so it can wrap tools that appear later. Do not combine it with
-  another extension that replaces one of those built-ins.
-- Rebuilding the core tools means re-reading the settings pi passes to them:
-  `shellPath`, `shellCommandPrefix`, and `images.autoResize`. Other settings that
-  reach built-in tools in a future pi release would need to be added here.
+- On pi 1.0.0, a core tool that another extension already replaced is left
+  alone. Sandbox and remote-execution extensions keep working, but their output
+  stays visible. The extension names those tools at startup.
+- On pi 1.0.0, rebuilding the core tools means re-reading the settings pi passes
+  to them: `shellPath`, `shellCommandPrefix`, and `images.autoResize`.
 - Toggling redraws rows already on screen through pi's tool-expansion state,
   which is the only lever an extension has for that.
 
